@@ -61,7 +61,9 @@ function cleanup_nova_hypervisor {
 # configure_nova_hypervisor - Set config files, create data dirs, etc
 function configure_nova_hypervisor {
     iniset $NOVA_CONF DEFAULT compute_driver novadocker.virt.docker.driver.DockerDriver
-    iniset $GLANCE_API_CONF DEFAULT container_formats ami,ari,aki,bare,ovf,docker
+    if [[ "$ENABLED_SERVICES" =~ "g-api" ]]; then
+        iniset $GLANCE_API_CONF DEFAULT container_formats ami,ari,aki,bare,ovf,docker
+    fi
 }
 
 # is_docker_running - Return 0 (true) if Docker is running, otherwise 1
@@ -100,12 +102,14 @@ function start_nova_hypervisor {
     # push the rootwrap
     sudo cp $DOCKER_DIR/etc/nova/rootwrap.d/docker.filters  /etc/nova/rootwrap.d/docker.filters
 
-    echo "Checking default image for docker..."
-    if ! (glance image-show "$DEFAULT_IMAGE_NAME"); then
-        echo "Pulling $DOCKER_IMAGE_NAME..."
-        docker pull $DOCKER_IMAGE_NAME
-        echo "Saving $DOCKER_IMAGE_NAME to glance..."
-        docker save $DOCKER_IMAGE_NAME | glance image-create --is-public=True --container-format=docker --disk-format=raw --name $DEFAULT_IMAGE_NAME
+    if [[ "$ENABLED_SERVICES" =~ "g-api" ]]; then
+        echo "Checking default image for docker..."
+        if ! (glance image-show "$DEFAULT_IMAGE_NAME"); then
+            echo "Pulling $DOCKER_IMAGE_NAME..."
+            docker pull $DOCKER_IMAGE_NAME
+            echo "Saving $DOCKER_IMAGE_NAME to glance..."
+            docker save $DOCKER_IMAGE_NAME | glance image-create --is-public=True --container-format=docker --disk-format=raw --name $DEFAULT_IMAGE_NAME
+        fi
     fi
 }
 
